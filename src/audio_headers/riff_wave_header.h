@@ -36,14 +36,12 @@ typedef struct {
 int load_wav_file(WavFile* wav, const char* file_path) {
     FILE* file = fopen(file_path, "rb");
     if (!file) {
-        //std::cerr << "Cannot open WAV file: " << file_path << std::endl;
         fprintf(stderr, "Cannot open WAV file: %s\n", file_path);
         return 0;
     }
 
     // Read the header
     if (fread(&wav->header, sizeof(RiffWaveHeader), 1, file) != 1) {
-        //std::cerr << "Error reading WAV header" << std::endl;
         fprintf(stderr, "Error reading WAV header\n");
         fclose(file);
         return 0;
@@ -54,7 +52,6 @@ int load_wav_file(WavFile* wav, const char* file_path) {
         strncmp(wav->header.wave_header, "WAVE", 4) != 0 ||
         strncmp(wav->header.fmt_header, "fmt ", 4) != 0 ||
         strncmp(wav->header.data_header, "data", 4) != 0) {
-        //std::cerr << "Invalid WAV file format" << std::endl;
         fprintf(stderr, "Invalid WAV file format\n");
         fclose(file);
         return 0;
@@ -69,7 +66,6 @@ int load_wav_file(WavFile* wav, const char* file_path) {
 
     // Read the data
     if (fread(wav->data, wav->header.data_size, 1, file) != 1) {
-        //std::cerr << "Error reading WAV data" << std::endl;
         fprintf(stderr, "Error reading WAV data\n");
         free(wav->data);
         fclose(file);
