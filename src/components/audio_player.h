@@ -17,15 +17,6 @@ typedef struct {
     snd_pcm_hw_params_t* hw_params;
 } AlsaPlayer;
 
-void AlsaPlayer_init(AlsaPlayer* player, unsigned int rate, int channels, snd_pcm_uframes_t frames) {
-    player->rate = rate;
-    player->channels = channels;
-    player->frames = frames;
-    player->buffer_size = frames * 4;
-    player->playback_handle = NULL;
-    player->hw_params = NULL;
-}
-
 void AlsaPlayer_destroy(AlsaPlayer* player) {
     if (player->playback_handle) {
         snd_pcm_drain(player->playback_handle);
@@ -36,7 +27,14 @@ void AlsaPlayer_destroy(AlsaPlayer* player) {
     }
 }
 
-int AlsaPlayer_initialize_params(AlsaPlayer* player, unsigned int rate, int channels, snd_pcm_uframes_t frames) {
+int AlsaPlayer_init(AlsaPlayer* player, unsigned int rate, int channels, snd_pcm_uframes_t frames) {
+    player->rate = rate;
+    player->channels = channels;
+    player->frames = frames;
+    player->buffer_size = frames * 4;
+    player->playback_handle = NULL;
+    player->hw_params = NULL;
+
     int err;
 
     if ((err = snd_pcm_open(&player->playback_handle, "default", SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
@@ -95,10 +93,6 @@ int AlsaPlayer_initialize_params(AlsaPlayer* player, unsigned int rate, int chan
     return 1;
 }
 
-int AlsaPlayer_initialize(AlsaPlayer* player) {
-    return AlsaPlayer_initialize_params(player, player->rate, player->channels, player->frames);
-}
-
 void AlsaPlayer_playSineWave(AlsaPlayer* player, float frequency, int duration) {
     int err;
     int16_t buffer[player->frames * player->channels];
@@ -126,7 +120,7 @@ void AlsaPlayer_playWavFile(AlsaPlayer* player, const char* file_path) {
         return;
     }
 
-    if (!AlsaPlayer_initialize_params(player, wavFile.header.sample_rate, wavFile.header.num_channels, player->frames)) {
+    if (!AlsaPlayer_init(player, wavFile.header.sample_rate, wavFile.header.num_channels, player->frames)) {
         printf("Failed to reinitialize ALSA player with WAV file parameters\n");
         return;
     }
