@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "../audio_headers/riff_wave_header.h"
 
@@ -16,6 +17,17 @@ typedef struct {
     snd_pcm_t* playback_handle;
     snd_pcm_hw_params_t* hw_params;
 } AlsaPlayer;
+
+typedef struct AudioNode {
+    char* file_path;
+    struct AudioNode* next;
+} AudioNode;
+
+typedef struct {
+    AudioNode* front;
+    AudioNode* rear;
+    pthread_mutex_t lock;
+} AudioQueue;
 
 void AlsaPlayer_destroy(AlsaPlayer* player) {
     if (player->playback_handle) {
@@ -167,4 +179,77 @@ void AlsaPlayer_playWavFile(AlsaPlayer* player, const char* file_path) {
     free(silence);
     snd_pcm_drain(player->playback_handle);
     free_wav_file(&wavFile);
+}
+
+void AlsaPlayer_playQueue(AlsaPlayer* player, AudioQueue* queue) {
+    while(1) {
+        pthread_mutex_lock(&queue->lock);
+        AudioNode* current = queue->front;
+        pthread_mutex_unlock(&queue->lock);
+
+        while(current != NULL) {
+            AlsaPlayer_playWavFile(player, current->file_path);
+
+            pthread_mutex_lock(&queue->lock);
+            current = current->next;
+            pthread_mutex_unlock(&queue->lock);
+        }
+    }
+}
+
+void AudioQueue_init(AudioQueue* queue) {
+    queue->front = NULL;
+    queue->rear = NULL;
+    pthread_mutex_init(&queue->lock, NULL);
+}
+
+void AudioQueue_enqueue(AudioQueue* queue, const char* file_path) {
+    AudioNode* new_node = (AudioNode*)malloc(sizeof(AudioNode));
+    new_node->file_path = strdup(file_path);
+    new_node->next = NULL;
+
+    pthread_mutex_lock(&queue->lock);
+    if(queue->rear == NULL) {
+        queue->front = queue->rear = new_node;
+    } else {
+        queue->rear->next = new_node;
+        queue->rear = new_node;
+    }
+    pthread_mutex_unlock(&queue->lock);
+}
+
+char* AudioQueue_dequeue(AudioQueue* queue) {
+    pthread_mutex_lock(&queue->lock);
+    if(queue->front == NULL) {
+        pthread_mutex_unlock(&queue->lock);
+        return NULL;
+    }
+
+    AudioNode* temp = queue->front;
+    char* file_path = strdup(temp->file_path);
+    queue->front = queue->front->next;
+
+    if(queue->front == NULL) {
+        queue->rear = NULL;
+    }
+
+    pthread_mutex_unlock(&queue->lock);
+    free(temp->file_path);
+    free(temp);
+    return file_path;
+}
+
+void AudioQueue_destroy(AudioQueue* queue) {
+    pthread_mutex_lock(&queue->lock);
+    AudioNode* current = queue->front;
+    while(current != NULL) {
+        AudioNode* temp = current;
+        current = current->next;
+        free(temp->file_path);
+        free(temp);
+    }
+
+    queue->front = queue->rear = NULL;
+    pthread_mutex_unlock(&queue->lock);
+    pthread_mutex_destroy(&queue->lock);
 }
