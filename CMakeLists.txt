@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project name
-project(DXFramework)
+project(DXFramework C)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
 
-set(SOURCE_FILES src/main.cpp)
+set(SOURCE_FILES src/main.c)
 
-# vulkan_tutorial executable
 add_executable(DXFramework ${SOURCE_FILES})
+target_link_libraries(DXFramework m asound)
